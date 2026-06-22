@@ -1,6 +1,7 @@
 """
 跨性别信息聚合站 · 语义搜索后端
 依赖: fastapi uvicorn qdrant-client openai python-dotenv tiktoken
+Claude AI demo
 """
 
 from fastapi import FastAPI, HTTPException, Query
@@ -24,7 +25,7 @@ app = FastAPI(title="Trans Search API", version="1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # 生产环境改为你的前端域名
+    allow_origins=["*"],   # 生产环境改为前端域名
     allow_methods=["*"],
     allow_headers=["*"],
 )
