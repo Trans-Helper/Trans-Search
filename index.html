@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trans-Search · 跨性别信息检索</title>
+<meta name="description" content="聚合跨性别相关医疗、法律、心理与生活信息的中文资料库，支持语义搜索。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --trans-blue:  #55CDFC;
+  --trans-pink:  #F7A8B8;
+  --bg:          #F8F8FA;
+  --surface:     #FFFFFF;
+  --surface-2:   #F2F2F5;
+  --border:      #E4E4E8;
+  --border-2:    #D0D0D6;
+  --text:        #18181B;
+  --text-2:      #52525B;
+  --text-3:      #A1A1AA;
+  --accent:      #3B9ECC;
+  --accent-bg:   #EBF6FD;
+  --pink-ui:     #D4849A;
+  --pink-bg:     #FDF0F3;
+  --radius-s:    6px;
+  --radius-m:    10px;
+  --radius-l:    14px;
+  --font: 'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;
+}
+[data-theme="dark"] {
+  --bg:         #111113;
+  --surface:    #1C1C1F;
+  --surface-2:  #27272B;
+  --border:     #303036;
+  --border-2:   #3F3F47;
+  --text:       #FAFAFA;
+  --text-2:     #A1A1AA;
+  --text-3:     #52525B;
+  --accent:     #60C0F0;
+  --accent-bg:  #0D2535;
+  --pink-ui:    #E8A0B4;
+  --pink-bg:    #2A1820;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px;scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.65;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s;min-height:100vh}
+a{color:inherit;text-decoration:none}
+button{font-family:var(--font);cursor:pointer;border:none;background:none}
+input,select{font-family:var(--font)}
+
+.flag-stripe{position:fixed;top:0;left:0;right:0;height:3px;display:flex;z-index:100;pointer-events:none}
+.flag-stripe span{flex:1}
+.flag-stripe span:nth-child(1){background:var(--trans-blue)}
+.flag-stripe span:nth-child(2){background:var(--trans-pink)}
+.flag-stripe span:nth-child(3){background:#fff;border-bottom:1px solid var(--border)}
+.flag-stripe span:nth-child(4){background:var(--trans-pink)}
+.flag-stripe span:nth-child(5){background:var(--trans-blue)}
+
+.topbar{position:fixed;top:3px;left:0;right:0;height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;z-index:99}
+.topbar-logo{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.logo-mark{width:22px;height:22px;border-radius:5px;background:linear-gradient(135deg,var(--trans-blue) 0%,var(--trans-pink) 100%);flex-shrink:0}
+.logo-text{font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--text)}
+.logo-beta{font-size:10px;font-weight:500;color:var(--accent);background:var(--accent-bg);padding:1px 6px;border-radius:4px;letter-spacing:.02em;text-transform:uppercase}
+.topbar-search{flex:1;max-width:480px;position:relative}
+.topbar-search input{width:100%;padding:7px 12px 7px 34px;border:1.5px solid var(--border);border-radius:var(--radius-m);background:var(--surface-2);color:var(--text);font-size:14px;outline:none;transition:border-color .15s,background .15s}
+.topbar-search input:focus{border-color:var(--accent);background:var(--surface)}
+.topbar-search input::placeholder{color:var(--text-3)}
+.topbar-search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);pointer-events:none;width:15px;height:15px}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.icon-btn{width:34px;height:34px;border-radius:var(--radius-s);display:flex;align-items:center;justify-content:center;color:var(--text-2);transition:background .12s,color .12s}
+.icon-btn:hover{background:var(--surface-2);color:var(--text)}
+.icon-btn svg{width:17px;height:17px}
+
+.app{display:flex;padding-top:55px;min-height:100vh}
+.sidebar{width:240px;flex-shrink:0;border-right:1px solid var(--border);background:var(--surface);position:fixed;top:55px;bottom:0;left:0;overflow-y:auto;padding:16px 0 40px;transition:transform .2s}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:2px}
+.sidebar-section-title{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);padding:0 16px 8px;margin-top:8px}
+
+.tree-node-header{display:flex;align-items:center;gap:6px;padding:6px 16px;cursor:pointer;font-size:13px;color:var(--text-2);transition:background .1s,color .1s;border-left:2px solid transparent}
+.tree-node-header:hover{background:var(--surface-2);color:var(--text)}
+.tree-node-header.active{color:var(--accent);background:var(--accent-bg);border-left-color:var(--accent)}
+.tree-node-header .chevron{margin-left:auto;width:13px;height:13px;color:var(--text-3);transition:transform .15s;flex-shrink:0}
+.tree-node-header.open .chevron{transform:rotate(90deg)}
+.tree-node-icon{width:14px;height:14px;flex-shrink:0}
+.tree-node-children{display:none}
+.tree-node-children.open{display:block}
+
+.tree-leaf{display:flex;align-items:center;gap:6px;padding:5px 16px 5px 32px;font-size:12px;color:var(--text-2);cursor:pointer;transition:background .1s,color .1s;border-left:2px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tree-leaf:hover{background:var(--surface-2);color:var(--text)}
+.tree-leaf.active{color:var(--accent);background:var(--accent-bg);border-left-color:var(--accent)}
+.tree-leaf-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.flag-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.flag-dot.ai{background:#60A5FA}
+.flag-dot.risk{background:#FB923C}
+.flag-dot.reviewed{background:#4ADE80}
+.flag-dot.outdated{background:#C084FC}
+
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:89}
+.sidebar-toggle{display:none;position:fixed;bottom:20px;left:20px;width:40px;height:40px;border-radius:50%;background:var(--accent);color:#fff;align-items:center;justify-content:center;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.2)}
+.sidebar-toggle svg{width:18px;height:18px}
+
+.main{margin-left:240px;flex:1;min-width:0;padding:28px 32px 60px;max-width:860px}
+
+.search-hero{padding:36px 0 32px;border-bottom:1px solid var(--border);margin-bottom:28px}
+.search-hero-eyebrow{font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);margin-bottom:10px}
+.search-hero-title{font-size:26px;font-weight:700;letter-spacing:-.02em;color:var(--text);margin-bottom:6px;line-height:1.3}
+.search-hero-sub{font-size:14px;color:var(--text-2);margin-bottom:24px;line-height:1.7}
+
+.search-main-wrap{display:flex;gap:8px;align-items:stretch}
+.search-main-input-wrap{flex:1;position:relative}
+.search-main-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-3);pointer-events:none;width:17px;height:17px}
+input#main-query{width:100%;padding:13px 16px 13px 44px;border:1.5px solid var(--border-2);border-radius:var(--radius-m);background:var(--surface);color:var(--text);font-size:15px;outline:none;transition:border-color .15s}
+input#main-query:focus{border-color:var(--accent)}
+input#main-query::placeholder{color:var(--text-3)}
+button#main-search-btn{padding:0 22px;background:var(--accent);color:#fff;border-radius:var(--radius-m);font-size:14px;font-weight:500;transition:opacity .15s;white-space:nowrap}
+button#main-search-btn:hover{opacity:.88}
+button#main-search-btn:disabled{opacity:.5;cursor:default}
+
+.filter-row{display:flex;align-items:center;gap:6px;margin-top:14px;flex-wrap:wrap}
+.filter-label{font-size:12px;color:var(--text-3);margin-right:2px}
+.chip{padding:4px 12px;border:1.5px solid var(--border);border-radius:20px;font-size:12px;cursor:pointer;color:var(--text-2);background:transparent;transition:all .12s}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip.active{border-color:var(--accent);background:var(--accent-bg);color:var(--accent);font-weight:500}
+
+.active-filter-bar{display:none;align-items:center;gap:8px;padding:8px 12px;background:var(--accent-bg);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);border-radius:var(--radius-s);font-size:12px;color:var(--accent);margin-bottom:16px}
+.active-filter-bar.show{display:flex}
+.active-filter-bar button{margin-left:auto;font-size:12px;color:var(--accent);opacity:.7}
+.active-filter-bar button:hover{opacity:1}
+
+.results-meta{font-size:13px;color:var(--text-3);margin-bottom:16px;min-height:20px}
+.results-meta.searching{color:var(--accent)}
+
+.result-list{display:flex;flex-direction:column;gap:10px}
+.result-card{display:block;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-l);padding:18px 20px;transition:border-color .15s,transform .12s;cursor:pointer;color:inherit}
+.result-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.result-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:7px}
+.result-card-title{font-size:15px;font-weight:500;color:var(--text);line-height:1.4;flex:1}
+.result-score{flex-shrink:0;font-size:11px;color:var(--text-3);background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:2px 7px;white-space:nowrap;align-self:flex-start;margin-top:2px}
+.result-card-excerpt{font-size:13px;color:var(--text-2);line-height:1.75;margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.result-card-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+
+.flag-badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:2px 7px;border-radius:4px;font-weight:500;white-space:nowrap}
+.flag-badge.ai{background:#DBEAFE;color:#1D4ED8}
+.flag-badge.risk{background:#FEF3C7;color:#B45309}
+.flag-badge.reviewed{background:#DCFCE7;color:#15803D}
+.flag-badge.outdated{background:#F3E8FF;color:#7E22CE}
+[data-theme="dark"] .flag-badge.ai{background:#1E3A5F;color:#93C5FD}
+[data-theme="dark"] .flag-badge.risk{background:#431407;color:#FCD34D}
+[data-theme="dark"] .flag-badge.reviewed{background:#14532D;color:#86EFAC}
+[data-theme="dark"] .flag-badge.outdated{background:#3B0764;color:#D8B4FE}
+
+.cat-badge{font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500;background:var(--pink-bg);color:var(--pink-ui);border:1px solid color-mix(in srgb,var(--pink-ui) 20%,transparent)}
+.source-text{font-size:11px;color:var(--text-3);margin-left:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+
+.empty-state{text-align:center;padding:56px 20px;color:var(--text-3)}
+.empty-state-icon{width:44px;height:44px;margin:0 auto 16px;opacity:.3}
+.empty-state h3{font-size:15px;font-weight:500;color:var(--text-2);margin-bottom:8px}
+.empty-state p{font-size:13px;line-height:1.7;max-width:300px;margin:0 auto}
+.suggestion-wrap{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:20px}
+.sug-pill{padding:6px 14px;border:1.5px dashed var(--border-2);border-radius:20px;font-size:13px;cursor:pointer;color:var(--text-2);transition:all .12s}
+.sug-pill:hover{border-color:var(--accent);color:var(--accent);border-style:solid}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid color-mix(in srgb,var(--accent) 25%,transparent);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:5px}
+
+.site-footer{margin-left:240px;padding:20px 32px;border-top:1px solid var(--border);font-size:12px;color:var(--text-3);display:flex;gap:16px;align-items:center}
+.site-footer a{color:var(--text-3);transition:color .12s}
+.site-footer a:hover{color:var(--text-2)}
+
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);z-index:90;width:260px}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-toggle{display:flex}
+  .main{margin-left:0;padding:20px 16px 60px}
+  .topbar-search{display:none}
+  .search-hero{padding:24px 0 20px}
+  .search-hero-title{font-size:21px}
+  .result-card{padding:14px 16px}
+  .result-score{display:none}
+  .site-footer{margin-left:0;padding:16px}
+}
+@media(max-width:480px){
+  .main{padding:16px 12px 60px}
+  .search-main-wrap{flex-direction:column}
+  button#main-search-btn{padding:12px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="flag-stripe" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+
+<header class="topbar">
+  <div class="topbar-logo">
+    <div class="logo-mark" aria-hidden="true"></div>
+    <span class="logo-text">Trans-Search</span>
+    <span class="logo-beta">Beta</span>
+  </div>
+  <div class="topbar-search" role="search">
+    <svg class="topbar-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="search" id="topbar-query" placeholder="搜索文章…" autocomplete="off" aria-label="搜索">
+  </div>
+  <div class="topbar-right">
+    <button class="icon-btn" id="theme-toggle" title="切换深色模式" aria-label="切换深色模式">
+      <svg id="icon-sun" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      <svg id="icon-moon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+    <button class="icon-btn" id="sidebar-toggle-top" title="切换侧边栏" aria-label="切换侧边栏">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h12"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar" aria-label="知识树导航">
+    <div class="sidebar-section-title">来源与分类</div>
+    <div id="tree-container"><div style="padding:16px;font-size:13px;color:var(--text-3)">加载中…</div></div>
+  </aside>
+
+  <main class="main" id="main-content">
+    <section class="search-hero">
+      <div class="search-hero-eyebrow">跨性别信息检索</div>
+      <h1 class="search-hero-title">找到你需要的信息</h1>
+      <p class="search-hero-sub">聚合医疗、法律、心理与生活相关资料，输入问题或关键词即可检索，<br>不需要和文章用字完全一致。</p>
+      <div class="search-main-wrap" role="search">
+        <div class="search-main-input-wrap">
+          <svg class="search-main-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="search" id="main-query" placeholder="试试：激素治疗怎么开始、法律上怎么改性别……" autocomplete="off" aria-label="搜索">
+        </div>
+        <button id="main-search-btn" onclick="doSearch()">搜索</button>
+      </div>
+      <div class="filter-row" role="group" aria-label="分类筛选">
+        <span class="filter-label">分类</span>
+        <button class="chip active" data-cat="" onclick="setCategory(this)">全部</button>
+        <button class="chip" data-cat="医疗" onclick="setCategory(this)">医疗</button>
+        <button class="chip" data-cat="法律" onclick="setCategory(this)">法律</button>
+        <button class="chip" data-cat="心理" onclick="setCategory(this)">心理</button>
+        <button class="chip" data-cat="生活" onclick="setCategory(this)">生活</button>
+        <button class="chip" data-cat="社群" onclick="setCategory(this)">社群</button>
+      </div>
+    </section>
+
+    <div class="active-filter-bar" id="active-filter-bar">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      <span id="active-filter-text">已筛选</span>
+      <button onclick="clearTreeFilter()">清除筛选 ×</button>
+    </div>
+
+    <div class="results-meta" id="results-meta" aria-live="polite"></div>
+
+    <div id="results" role="region" aria-label="搜索结果">
+      <div class="empty-state">
+        <svg class="empty-state-icon" fill="none" viewBox="0 0 48 48" stroke="currentColor" stroke-width="1.5"><circle cx="22" cy="22" r="14"/><path d="m34 34 8 8"/><path d="M22 16v6M22 26h.01" stroke-linecap="round"/></svg>
+        <h3>从这里开始</h3>
+        <p>输入你想了解的内容，或者点击下面的常见问题快速开始。</p>
+        <div class="suggestion-wrap" role="list">
+          <button class="sug-pill" onclick="suggest(this)">HRT 激素治疗怎么开始</button>
+          <button class="sug-pill" onclick="suggest(this)">如何变更身份证性别</button>
+          <button class="sug-pill" onclick="suggest(this)">青少年跨性别心理支持</button>
+          <button class="sug-pill" onclick="suggest(this)">性别确认手术前需要准备什么</button>
+          <button class="sug-pill" onclick="suggest(this)">出柜经验与建议</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<footer class="site-footer">
+  <span>© 2026 Trans-Search</span>
+  <span>·</span>
+  <span>由 <a href="https://worldexecute.me" target="_blank" rel="noopener">TransHelper 团队</a> 开发</span>
+  <span>·</span>
+  <a href="https://pay.minecraftxfj.top" target="_blank" rel="noopener">支持项目</a>
+</footer>
+
+<button class="sidebar-toggle" id="sidebar-toggle-fab" onclick="toggleSidebar()" aria-label="打开导航">
+  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h12"/></svg>
+</button>
+
+<script>
+const API_BASE = 'http://localhost:8000';
+const html = document.documentElement;
+let isDark = localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+let activeCategory = '', activeSourceSite = '', activeChapter = '';
+
+function applyTheme() {
+  html.dataset.theme = isDark ? 'dark' : '';
+  document.getElementById('icon-sun').style.display  = isDark ? 'none' : '';
+  document.getElementById('icon-moon').style.display = isDark ? '' : 'none';
+}
+document.getElementById('theme-toggle').addEventListener('click', () => {
+  isDark = !isDark; localStorage.setItem('theme', isDark ? 'dark' : 'light'); applyTheme();
+});
+applyTheme();
+
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar'), ov = document.getElementById('sidebar-overlay');
+  const open = sb.classList.toggle('open');
+  ov.style.display = open ? 'block' : 'none';
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').style.display = 'none';
+}
+document.getElementById('sidebar-toggle-top').addEventListener('click', toggleSidebar);
+
+async function loadTree() {
+  try {
+    const r = await fetch(API_BASE + '/tree');
+    const tree = await r.json();
+    renderTree(tree);
+  } catch(e) {
+    document.getElementById('tree-container').innerHTML = '<div style="padding:16px;font-size:12px;color:var(--text-3)">无法加载，请检查后端连接</div>';
+  }
+}
+
+function renderTree(tree) {
+  const container = document.getElementById('tree-container');
+  if (!tree.length) { container.innerHTML = '<div style="padding:16px;font-size:13px;color:var(--text-3)">暂无数据</div>'; return; }
+  container.innerHTML = tree.map(site => `
+    <div class="tree-node">
+      <div class="tree-node-header" onclick="toggleNode(this)" data-site="${esc(site.name)}">
+        <svg class="tree-node-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20"/></svg>
+        <span>${esc(site.name)}</span>
+        <svg class="chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+      <div class="tree-node-children">
+        ${site.children.map(cat => `
+          <div class="tree-node">
+            <div class="tree-node-header" style="padding-left:28px" onclick="toggleNode(this)" data-site="${esc(site.name)}" data-cat="${esc(cat.name)}">
+              <svg class="tree-node-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+              <span>${esc(cat.name)}</span>
+              <svg class="chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+            <div class="tree-node-children">
+              ${cat.children.map(ch => `
+                <div class="tree-node">
+                  <div class="tree-node-header" style="padding-left:40px" onclick="toggleNode(this)" data-site="${esc(site.name)}" data-cat="${esc(cat.name)}" data-chapter="${esc(ch.name)}">
+                    <svg class="tree-node-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+                    <span>${esc(ch.name)}</span>
+                    <svg class="chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                  </div>
+                  <div class="tree-node-children">
+                    ${ch.children.map(art => `
+                      <div class="tree-leaf" onclick="leafClick('${esc(art.title)}')" title="${esc(art.title)}">
+                        ${(art.flags||[]).map(f=>`<span class="flag-dot ${f}" title="${f}"></span>`).join('')}
+                        <span class="tree-leaf-text">${esc(art.title)}</span>
+                      </div>`).join('')}
+                  </div>
+                </div>`).join('')}
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function toggleNode(el) {
+  const children = el.nextElementSibling;
+  const isOpen = children.classList.toggle('open');
+  el.classList.toggle('open', isOpen);
+  const { site, cat, chapter } = el.dataset;
+  if (site) {
+    document.querySelectorAll('.tree-node-header.active').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    activeSourceSite = site || '';
+    activeChapter    = chapter || '';
+    const parts = [site, cat, chapter].filter(Boolean);
+    showActiveFilter(parts.join(' › '));
+    if (getQuery()) doSearch();
+  }
+}
+
+function leafClick(title) {
+  document.getElementById('main-query').value = title;
+  document.getElementById('topbar-query').value = title;
+  doSearch();
+  if (window.innerWidth <= 768) closeSidebar();
+}
+
+function showActiveFilter(text) {
+  document.getElementById('active-filter-text').textContent = '当前范围：' + text;
+  document.getElementById('active-filter-bar').classList.add('show');
+}
+function clearTreeFilter() {
+  activeSourceSite = ''; activeChapter = '';
+  document.getElementById('active-filter-bar').classList.remove('show');
+  document.querySelectorAll('.tree-node-header.active,.tree-leaf.active').forEach(n => n.classList.remove('active'));
+  if (getQuery()) doSearch();
+}
+
+function getQuery() { return (document.getElementById('main-query').value || '').trim(); }
+
+function setCategory(btn) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  activeCategory = btn.dataset.cat;
+  if (getQuery()) doSearch();
+}
+function suggest(btn) { document.getElementById('main-query').value = btn.textContent; document.getElementById('topbar-query').value = btn.textContent; doSearch(); }
+
+document.getElementById('main-query').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+document.getElementById('topbar-query').addEventListener('keydown', e => { if (e.key === 'Enter') { document.getElementById('main-query').value = e.target.value; doSearch(); } });
+document.getElementById('topbar-query').addEventListener('input', e => { document.getElementById('main-query').value = e.target.value; });
+document.getElementById('main-query').addEventListener('input', e => { document.getElementById('topbar-query').value = e.target.value; });
+
+async function doSearch() {
+  const q = getQuery(); if (!q) return;
+  const metaEl = document.getElementById('results-meta');
+  const results = document.getElementById('results');
+  const btn = document.getElementById('main-search-btn');
+  btn.disabled = true;
+  metaEl.className = 'results-meta searching';
+  metaEl.innerHTML = '<span class="spinner"></span>语义检索中…';
+  results.innerHTML = '';
+  const params = new URLSearchParams({ q, top_k: 10 });
+  if (activeCategory)   params.set('category',    activeCategory);
+  if (activeSourceSite) params.set('source_site',  activeSourceSite);
+  if (activeChapter)    params.set('chapter',      activeChapter);
+  try {
+    const r = await fetch(API_BASE + '/search?' + params);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    metaEl.className = 'results-meta';
+    if (data.length) {
+      metaEl.textContent = '找到 ' + data.length + ' 篇相关文章';
+      results.innerHTML = '<div class="result-list">' + data.map(renderCard).join('') + '</div>';
+    } else {
+      metaEl.textContent = '没有找到相关文章';
+      results.innerHTML = `<div class="empty-state"><svg class="empty-state-icon" fill="none" viewBox="0 0 48 48" stroke="currentColor" stroke-width="1.5"><circle cx="22" cy="22" r="14"/><path d="m34 34 8 8"/><path d="M18 18l8 8M26 18l-8 8" stroke-linecap="round"/></svg><h3>没有找到匹配的文章</h3><p>换个说法试试，或者清除分类筛选后再搜索。</p></div>`;
+    }
+  } catch(e) {
+    metaEl.className = 'results-meta'; metaEl.style.color = 'var(--pink-ui)'; metaEl.textContent = '请求失败，请确认后端服务已启动';
+    results.innerHTML = '';
+  } finally { btn.disabled = false; }
+}
+
+const FLAG_LABELS = { ai:'AI 参与', risk:'风险内容', reviewed:'已审核', outdated:'可能过时' };
+function renderCard(item) {
+  const flags = (item.flags||[]).map(f=>`<span class="flag-badge ${f}">${FLAG_LABELS[f]||f}</span>`).join('');
+  const cat = item.category ? `<span class="cat-badge">${esc(item.category)}</span>` : '';
+  const source = item.source_site ? `<span class="source-text">${esc(item.source_site)}</span>` : '';
+  const href = item.url ? `href="${esc(item.url)}" target="_blank" rel="noopener noreferrer"` : '';
+  return `<a class="result-card" ${href} aria-label="${esc(item.title)}">
+    <div class="result-card-top"><div class="result-card-title">${esc(item.title)}</div><span class="result-score">${(item.score*100).toFixed(0)}% 相关</span></div>
+    <div class="result-card-excerpt">${esc(item.excerpt)}</div>
+    <div class="result-card-meta">${cat}${flags}${source}</div>
+  </a>`;
+}
+
+function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+loadTree();
+</script>
+</body>
+</html>
