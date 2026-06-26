@@ -40,7 +40,7 @@ backend/config.json
 backend-cf/node_modules/
 backend-cf/dist/
 backend-cf/.wrangler/
-backend-cf/dev.vars
+backend-cf/.dev.vars
 
 frontend/node_modules/
 frontend/.nuxt/
