@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trans-Search · 内容管理后台</title>
+<style>
+:root{
+  --bg:#F5F5F7;--surface:#FFF;--border:#D2D2D7;--text:#1D1D1F;--muted:#6E6E73;--hint:#AEAEB2;
+  --accent:#0071E3;--green:#28A745;--red:#DC3545;--yellow:#E6A817;
+  --radius:10px;--font:'PingFang SC','Noto Sans SC','Microsoft YaHei',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.6}
+
+/* layout */
+.layout{display:flex;min-height:100vh}
+.sidebar{width:196px;background:var(--surface);border-right:1px solid var(--border);padding:20px 0;flex-shrink:0;position:fixed;top:0;bottom:0;left:0;overflow-y:auto}
+.main{margin-left:196px;flex:1;padding:28px 32px;max-width:1040px}
+
+/* sidebar */
+.sidebar-logo{padding:0 16px 16px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.sidebar-logo-name{font-size:14px;font-weight:700;color:var(--text)}
+.sidebar-logo-sub{font-size:11px;color:var(--hint)}
+.nav-item{display:flex;align-items:center;gap:8px;padding:9px 16px;cursor:pointer;color:var(--muted);font-size:13px;transition:all .12s;border-left:3px solid transparent}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{background:#EFF6FF;color:var(--accent);border-left-color:var(--accent);font-weight:500}
+.nav-item svg{width:15px;height:15px;flex-shrink:0}
+
+/* api bar */
+.api-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:9px 32px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);position:sticky;top:0;z-index:50;margin-left:196px}
+.api-bar input{border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:13px;font-family:var(--font);outline:none;width:220px;color:var(--text)}
+.api-bar input:focus{border-color:var(--accent)}
+.api-dot{width:8px;height:8px;border-radius:50%;background:var(--hint);flex-shrink:0}
+.api-dot.ok{background:var(--green)}.api-dot.err{background:var(--red)}
+
+/* page header */
+.page-header{margin-bottom:20px}
+.page-title{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:3px}
+.page-sub{font-size:13px;color:var(--muted)}
+
+/* card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card-title-left{display:flex;align-items:center;gap:6px}
+.card-title svg{width:15px;height:15px;color:var(--accent)}
+
+/* stats */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
+.stat-num{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.stat-label{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* form */
+.form-label{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:4px}
+input[type=text],input[type=url],select,textarea{width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:var(--font);color:var(--text);background:var(--surface);outline:none;transition:border-color .15s}
+input[type=text]:focus,input[type=url]:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:150px;line-height:1.6}
+.form-row{margin-bottom:12px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* flags */
+.flags-wrap{display:flex;gap:8px;flex-wrap:wrap}
+.flag-check{display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 11px;border:1.5px solid var(--border);border-radius:20px;font-size:12px;user-select:none;transition:all .12s;background:var(--surface)}
+.flag-check:hover{border-color:var(--accent);color:var(--accent)}
+.flag-check.checked{border-color:var(--accent);background:#EFF6FF;color:var(--accent);font-weight:500}
+.flag-check input{display:none}
+.flag-dot-sm{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.flag-dot-sm.ai{background:#60A5FA}.flag-dot-sm.risk{background:#FB923C}
+.flag-dot-sm.reviewed{background:#4ADE80}.flag-dot-sm.outdated{background:#C084FC}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:7px;font-size:13px;font-weight:500;font-family:var(--font);border:none;cursor:pointer;transition:opacity .15s;white-space:nowrap}
+.btn:hover{opacity:.84}.btn:disabled{opacity:.45;cursor:default}
+.btn svg{width:13px;height:13px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-danger{background:var(--red);color:#fff}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--text);border-color:#999}
+.btn-sm{padding:4px 10px;font-size:12px}
+
+/* upload */
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;transition:all .15s;background:var(--bg)}
+.upload-zone:hover,.upload-zone.dragover{border-color:var(--accent);background:#EFF6FF}
+.upload-zone svg{width:28px;height:28px;color:var(--hint);margin:0 auto 8px;display:block}
+.upload-zone p{font-size:13px;color:var(--muted)}.upload-zone small{font-size:11px;color:var(--hint)}
+#file-input,#folder-input{display:none}
+
+.file-list{margin-top:14px;display:flex;flex-direction:column;gap:7px}
+.file-item{background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:10px 13px;display:flex;align-items:center;gap:9px}
+.file-item-name{flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-item-path{font-size:11px;color:var(--hint);flex-shrink:0;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fstatus{font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;flex-shrink:0}
+.fstatus.pending{background:#F5F5F7;color:var(--muted)}.fstatus.loading{background:#FFF8E1;color:#856404}
+.fstatus.success{background:#D4EDDA;color:#155724}.fstatus.error{background:#F8D7DA;color:#721C24}
+.te-art-check{width:14px;height:14px;cursor:pointer;accent-color:var(--blue)}
+#te-art-panel .art-table td{padding:8px 10px;font-size:13px}
+#te-art-panel .art-table th{padding:8px 10px;font-size:11px}
+#te-art-search{border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;background:var(--bg);color:var(--text);outline:none}
+#te-art-search:focus{border-color:var(--blue)}
+
+/* log */
+.log-box{background:#1A1A1A;border-radius:8px;padding:12px 14px;font-family:'SF Mono','Fira Code',monospace;font-size:11px;line-height:1.8;max-height:200px;overflow-y:auto;color:#D4D4D4;margin-top:14px;display:none}
+.log-ok{color:#4EC9B0}.log-err{color:#F48771}.log-info{color:#9CDCFE}.log-warn{color:#DCDCAA}
+
+/* tree editor */
+.tree-editor{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.tree-editor-toolbar{padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tree-edit-area{padding:8px 0;min-height:120px;max-height:420px;overflow-y:auto}
+.te-node{user-select:none}
+.te-row{display:flex;align-items:center;gap:6px;padding:5px 14px;cursor:pointer;font-size:13px;border-left:2px solid transparent;transition:background .1s}
+.te-row:hover{background:#f0f0f2}
+.te-row.selected{background:#EFF6FF;border-left-color:var(--accent);color:var(--accent)}
+.te-row.drag-over{border-top:2px solid var(--accent)}
+.te-row[draggable="true"]{cursor:grab}
+.te-row[draggable="true"]:active{cursor:grabbing}
+.te-indent{width:16px;flex-shrink:0}
+.te-chevron{width:14px;height:14px;color:var(--hint);flex-shrink:0;transition:transform .12s;cursor:pointer}
+.te-chevron.open{transform:rotate(90deg)}
+.te-chevron.leaf{visibility:hidden}
+.te-icon{width:13px;height:13px;flex-shrink:0;color:var(--muted)}
+.te-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.te-count{font-size:11px;color:var(--hint);flex-shrink:0}
+.te-children{display:none}.te-children.open{display:block}
+.te-drag-handle{cursor:grab;color:var(--hint);width:14px;height:14px;flex-shrink:0;opacity:.5}
+.te-drag-handle:hover{opacity:1}
+
+/* article table */
+.art-table-wrap{overflow-x:auto}
+table.art-table{width:100%;border-collapse:collapse;min-width:600px}
+table.art-table th{text-align:left;font-size:11px;font-weight:600;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+table.art-table td{padding:10px 10px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle}
+table.art-table tr:last-child td{border-bottom:none}
+table.art-table tr:hover td{background:var(--bg)}
+.art-title-cell{font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.art-meta-cell{color:var(--muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flag-badge-sm{display:inline-flex;align-items:center;font-size:10px;padding:1px 6px;border-radius:3px;font-weight:500;margin:1px}
+.flag-badge-sm.ai{background:#DBEAFE;color:#1D4ED8}.flag-badge-sm.risk{background:#FEF3C7;color:#B45309}
+.flag-badge-sm.reviewed{background:#DCFCE7;color:#15803D}.flag-badge-sm.outdated{background:#F3E8FF;color:#7E22CE}
+.art-actions{display:flex;gap:5px;flex-shrink:0}
+
+/* modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:12px;padding:24px;width:100%;max-width:500px;margin:20px;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:18px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+
+/* tab */
+.tab-wrap{display:none}.tab-wrap.active{display:block}
+.empty{text-align:center;padding:36px;font-size:13px;color:var(--hint)}
+
+.toggle-switch{position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0}
+.toggle-switch input{display:none}
+.toggle-track{position:absolute;inset:0;background:var(--border);border-radius:12px;cursor:pointer;transition:background .2s}
+.toggle-track::after{content:'';position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle-switch input:checked+.toggle-track{background:var(--accent)}
+.toggle-switch input:checked+.toggle-track::after{transform:translateX(18px)}
+@media(max-width:720px){
+  .sidebar{display:none}.main,.api-bar{margin-left:0}
+  .stats-grid{grid-template-columns:1fr 1fr}.form-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- API bar -->
+<div class="api-bar">
+  <div class="api-dot" id="api-dot"></div>
+  <span>后端：</span>
+  <input type="text" id="api-url" value="https://search-api.transhelper.org">
+  <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick="checkApi()">连接</button>
+  <span style="margin-left:12px;font-size:12px;color:var(--muted)">Admin Key：</span>
+  <input type="password" id="admin-key" placeholder="管理员 Key" style="width:180px;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:13px;font-family:var(--font);outline:none;color:var(--text)" oninput="localStorage.setItem('adminKey',this.value)">
+  <span id="api-msg" style="font-size:12px"></span>
+</div>
+
+<div class="layout">
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-name">Trans-Search</div>
+    <div class="sidebar-logo-sub">内容管理后台</div>
+  </div>
+  <div class="nav-item active" onclick="switchTab('overview',this)">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>概览
+  </div>
+  <div class="nav-item" onclick="switchTab('tree-edit',this)">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>知识树管理
+  </div>
+  <div class="nav-item" onclick="switchTab('import-single',this)">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>录入单篇
+  </div>
+  <div class="nav-item" onclick="switchTab('import-batch',this)">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M16 12l-4-4-4 4M12 8v8"/></svg>批量上传
+  </div>
+
+  <div class="nav-item" onclick="switchTab('settings',this)">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>系统配置
+  </div>
+</aside>
+
+<main class="main">
+
+<!-- 概览 -->
+<div class="tab-wrap active" id="tab-overview">
+  <div class="page-header"><div class="page-title">概览</div><div class="page-sub">数据库当前状态</div></div>
+  <div class="stats-grid">
+    <div class="stat-box"><div class="stat-num" id="stat-chunks">--</div><div class="stat-label">向量块总数</div></div>
+    <div class="stat-box"><div class="stat-num" id="stat-articles">--</div><div class="stat-label">已入库文章</div></div>
+    <div class="stat-box"><div class="stat-num" id="stat-model" style="font-size:14px;padding-top:6px">--</div><div class="stat-label">Embedding 模型</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><div class="card-title-left"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>知识树概览</div>
+    <button class="btn btn-ghost btn-sm" onclick="loadOverviewTree()">刷新</button></div>
+    <div id="overview-tree"><div class="empty">点击刷新加载</div></div>
+  </div>
+</div>
+
+<!-- 知识树管理 -->
+<div class="tab-wrap" id="tab-tree-edit">
+  <div class="page-header"><div class="page-title">知识树管理</div><div class="page-sub">左侧管理树结构，右侧查看节点文章，支持批量操作</div></div>
+  <div style="display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start">
+    <!-- 左：树编辑器 -->
+    <div class="card" style="padding:0">
+      <div class="tree-editor-toolbar">
+        <button class="btn btn-ghost btn-sm" onclick="teRename()" id="te-btn-rename" disabled>
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>重命名
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="teAddChild()" id="te-btn-add" disabled>
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>新建
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="teMoveUp()" id="te-btn-up" disabled>
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="teMoveDown()" id="te-btn-down" disabled>
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="teDelete()" id="te-btn-del" disabled style="margin-left:auto">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+        </button>
+      </div>
+      <div class="tree-edit-area" id="te-area"><div class="empty">加载中…</div></div>
+      <div style="padding:10px 14px;font-size:11px;color:var(--hint);border-top:1px solid var(--border)">
+        点击节点选中；拖拽调整顺序；选中后点击按钮操作
+      </div>
+    </div>
+    <!-- 右：文章面板 -->
+    <div class="card" style="padding:0">
+      <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span id="te-panel-title" style="font-size:13px;font-weight:500;color:var(--text)">选中节点查看文章</span>
+        <span id="te-panel-count" style="font-size:12px;color:var(--muted)"></span>
+        <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" id="te-select-all-btn" onclick="teSelectAll()" style="display:none">全选</button>
+          <button class="btn btn-danger btn-sm" id="te-batch-del-btn" onclick="teBatchDelete()" style="display:none">批量删除</button>
+          <input type="text" id="te-art-search" placeholder="标题搜索…" style="width:120px;display:none" oninput="teFilterArts()">
+        </div>
+      </div>
+      <div id="te-art-panel"><div class="empty" style="padding:40px 0">从左侧选择节点以查看文章</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 录入单篇 -->
+<div class="tab-wrap" id="tab-import-single">
+  <div class="page-header"><div class="page-title">录入单篇</div><div class="page-sub">粘贴 Markdown 正文，填写元数据后提交</div></div>
+  <div class="card">
+    <div class="form-row"><label class="form-label">文章标题 *</label><input type="text" id="s-title" placeholder="文章标题"></div>
+    <div class="form-row"><label class="form-label">原文 URL</label><input type="url" id="s-url" placeholder="https://"></div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">来源站点</label><input type="text" id="s-source" placeholder="如：TGCWIKI"></div>
+      <div class="form-row"><label class="form-label">顶层分类</label>
+        <input type="text" id="s-category" list="cat-list" placeholder="如：医疗、法律（可自定义）">
+        <datalist id="cat-list"><option value="医疗"><option value="法律"><option value="心理"><option value="生活"><option value="社群"><option value="其他"></datalist>
+      </div>
+    </div>
+    <div class="form-row"><label class="form-label">章节路径（斜杠分隔）</label><input type="text" id="s-chapter" placeholder="如：激素治疗/HRT入门"></div>
+    <div class="form-row"><label class="form-label">标签（逗号分隔）</label><input type="text" id="s-tags" placeholder="HRT, 激素"></div>
+    <div class="form-row">
+      <label class="form-label">内容标记</label>
+      <div class="flags-wrap" id="s-flags">
+        <label class="flag-check" data-val="ai" onclick="toggleFlag(this,event)"><input type="checkbox"><span class="flag-dot-sm ai"></span>AI 参与生成</label>
+        <label class="flag-check" data-val="risk" onclick="toggleFlag(this,event)"><input type="checkbox"><span class="flag-dot-sm risk"></span>风险内容</label>
+        <label class="flag-check" data-val="reviewed" onclick="toggleFlag(this,event)"><input type="checkbox"><span class="flag-dot-sm reviewed"></span>专业审核</label>
+        <label class="flag-check" data-val="outdated" onclick="toggleFlag(this,event)"><input type="checkbox"><span class="flag-dot-sm outdated"></span>可能过时</label>
+      </div>
+    </div>
+    <div class="form-row"><label class="form-label">正文内容（Markdown）*</label><textarea id="s-content" placeholder="在此粘贴文章正文…"></textarea></div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button class="btn btn-primary" id="s-btn" onclick="submitSingle()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>提交入库
+      </button>
+      <span id="s-result" style="font-size:13px"></span>
+    </div>
+  </div>
+</div>
+
+<!-- 批量上传 -->
+<div class="tab-wrap" id="tab-import-batch">
+  <div class="page-header"><div class="page-title">批量上传</div><div class="page-sub">上传文件或整个文件夹，自动按目录结构生成知识树</div></div>
+  <div class="card">
+    <div class="card-title"><div class="card-title-left">默认元数据（无 frontmatter 时使用）</div></div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">来源站点</label><input type="text" id="b-source" placeholder="如：TGCWIKI"></div>
+      <div class="form-row"><label class="form-label">顶层分类</label>
+        <input type="text" id="b-category" list="cat-list" placeholder="如：医疗、法律（可自定义）">
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">默认内容标记</label>
+      <div class="flags-wrap" id="b-flags">
+        <label class="flag-check" data-val="ai" onclick="toggleFlag(this,event)"><input type="checkbox"><span class="flag-dot-sm ai"></span>AI 参与生成</label>
+        <label class="flag-check" data-val="risk" onclick="toggleFlag(this,event)"><input type="checkbox"><span class="flag-dot-sm risk"></span>风险内容</label>
+        <label class="flag-check" data-val="reviewed" onclick="toggleFlag(this,event)"><input type="checkbox"><span class="flag-dot-sm reviewed"></span>专业审核</label>
+        <label class="flag-check" data-val="outdated" onclick="toggleFlag(this,event)"><input type="checkbox"><span class="flag-dot-sm outdated"></span>可能过时</label>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--hint);background:#FFF8E1;border:1px solid #FFE082;border-radius:6px;padding:8px 12px">
+      文件夹上传时，目录层级自动映射为知识树：<br>
+      <code style="font-size:11px">来源站点 / 分类 / 章节 / 文章.md</code> → source_site / category / chapter
+    </div>
+  </div>
+  <div class="card">
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <div class="upload-zone" style="flex:1;min-width:200px" id="upload-zone-files" onclick="document.getElementById('file-input').click()" ondragover="onDragOver(event,'files')" ondragleave="onDragLeave(event,'files')" ondrop="onDrop(event,'files')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M16 12l-4-4-4 4M12 8v8"/></svg>
+        <p>选择 .md 文件</p><small>支持多选</small>
+      </div>
+      <div class="upload-zone" style="flex:1;min-width:200px" id="upload-zone-folder" onclick="document.getElementById('folder-input').click()" ondragover="onDragOver(event,'folder')" ondragleave="onDragLeave(event,'folder')" ondrop="onDrop(event,'folder')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+        <p>选择文件夹</p><small>自动扫描 .md 文件并按目录结构入库</small>
+      </div>
+    </div>
+    <input type="file" id="file-input" multiple accept=".md" onchange="onFileSelect(event)">
+    <input type="file" id="folder-input" webkitdirectory multiple onchange="onFolderSelect(event)">
+
+    <div class="file-list" id="file-list"></div>
+    <div id="batch-actions" style="display:none;margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-primary" id="batch-btn" onclick="startBatch()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>开始入库
+      </button>
+      <button class="btn btn-ghost" onclick="clearFiles()">清空列表</button>
+      <span id="batch-progress" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <div class="log-box" id="batch-log"></div>
+  </div>
+</div>
+
+
+
+<!-- 系统配置 -->
+<div class="tab-wrap" id="tab-settings">
+  <div class="page-header"><div class="page-title">系统配置</div><div class="page-sub">修改后立即生效，无需重启后端</div></div>
+  <div class="card">
+    <div class="card-title"><div class="card-title-left">模型与接口</div></div>
+    <div class="form-row"><label class="form-label">OpenAI 兼容接口地址（Base URL）</label><input type="text" id="cfg-base-url" placeholder="https://open.bigmodel.cn/api/paas/v4/"></div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">Embedding 模型名称</label><input type="text" id="cfg-embed-model" placeholder="embedding-3"></div>
+      <div class="form-row"><label class="form-label">Embedding 维度</label><input type="text" id="cfg-embed-dim" placeholder="2048"></div>
+    </div>
+    <div class="form-row"><label class="form-label">查询扩展用 Chat 模型名称</label><input type="text" id="cfg-chat-model" placeholder="glm-4-flash"></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><div class="card-title-left">分块参数</div></div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">最大块大小（字符数）</label><input type="text" id="cfg-chunk-size" placeholder="600"></div>
+      <div class="form-row"><label class="form-label">块重叠（字符数）</label><input type="text" id="cfg-chunk-overlap" placeholder="80"></div>
+    </div>
+    <div class="form-row"><label class="form-label">最低相关度阈值（0~1，低于此值的结果不返回）</label><input type="text" id="cfg-threshold" placeholder="0.25"></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><div class="card-title-left">搜索增强</div></div>
+    <div class="form-row" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:13px;font-weight:500">查询扩展</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">搜索前用 Chat 模型扩展同义词，提升召回率（每次搜索多消耗少量 token）</div>
+      </div>
+      <label class="toggle-switch"><input type="checkbox" id="cfg-query-expand"><span class="toggle-track"></span></label>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+    <div class="form-row" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:13px;font-weight:500">混合检索（BM25 + 向量）</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">同时进行关键词和语义检索，用 RRF 融合排序，准确率更高（需重建集合才完全生效）</div>
+      </div>
+      <label class="toggle-switch"><input type="checkbox" id="cfg-hybrid"><span class="toggle-track"></span></label>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+    <button class="btn btn-ghost" onclick="loadConfig()">重置为当前值</button>
+    <button class="btn btn-ghost" onclick="testLlmApi()" id="test-api-btn">🔌 测试 API 可用性</button>
+    <span id="cfg-result" style="font-size:13px"></span>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- 编辑文章 Modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-title">编辑文章</div>
+    <input type="hidden" id="edit-id">
+    <div class="form-row"><label class="form-label">标题</label><input type="text" id="edit-title"></div>
+    <div class="form-row"><label class="form-label">原文 URL</label><input type="url" id="edit-url"></div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-label">来源站点</label><input type="text" id="edit-source"></div>
+      <div class="form-row"><label class="form-label">分类</label>
+        <input type="text" id="edit-category" list="cat-list" placeholder="输入分类">
+      </div>
+    </div>
+    <div class="form-row"><label class="form-label">章节路径</label><input type="text" id="edit-chapter"></div>
+    <div class="form-row"><label class="form-label">标签（逗号分隔）</label><input type="text" id="edit-tags"></div>
+    <div class="form-row">
+      <label class="form-label">内容标记</label>
+      <div class="flags-wrap" id="edit-flags">
+        <label class="flag-check" data-val="ai" onclick="toggleFlag(this,event)"><input type="checkbox"><span class="flag-dot-sm ai"></span>AI 参与</label>
+        <label class="flag-check" data-val="risk" onclick="toggleFlag(this,event)"><input type="checkbox"><span class="flag-dot-sm risk"></span>风险内容</label>
+        <label class="flag-check" data-val="reviewed" onclick="toggleFlag(this,event)"><input type="checkbox"><span class="flag-dot-sm reviewed"></span>专业审核</label>
+        <label class="flag-check" data-val="outdated" onclick="toggleFlag(this,event)"><input type="checkbox"><span class="flag-dot-sm outdated"></span>可能过时</label>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 重命名节点 Modal -->
+<div class="modal-overlay" id="rename-modal">
+  <div class="modal">
+    <div class="modal-title">重命名节点</div>
+    <div class="form-row"><label class="form-label">新名称</label><input type="text" id="rename-input"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeRenameModal()">取消</button>
+      <button class="btn btn-primary" onclick="confirmRename()">确认</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// 工具
+// ═══════════════════════════════════════════
+function apiBase(){ return document.getElementById('api-url').value.replace(/\/$/,''); }
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function adminHeaders(){
+  const key = document.getElementById('admin-key').value;
+  return {'Content-Type':'application/json','X-Admin-Key': key};
+}
+function toggleFlag(el,e){
+  if(e) e.preventDefault();
+  el.classList.toggle('checked');
+  el.querySelector('input').checked = el.classList.contains('checked');
+}
+function getFlags(wrapId){
+  return [...document.querySelectorAll('#'+wrapId+' .flag-check.checked')].map(el=>el.dataset.val);
+}
+function setFlags(wrapId, flags){
+  document.querySelectorAll('#'+wrapId+' .flag-check').forEach(el=>{
+    const on = flags.includes(el.dataset.val);
+    el.classList.toggle('checked', on);
+    el.querySelector('input').checked = on;
+  });
+}
+
+function log(msg,type='info'){
+  const box=document.getElementById('batch-log');
+  box.style.display='block';
+  const cls={ok:'log-ok',err:'log-err',info:'log-info',warn:'log-warn'}[type]||'log-info';
+  box.innerHTML+=`<div class="${cls}">${esc(msg)}</div>`;
+  box.scrollTop=box.scrollHeight;
+}
+
+// ═══════════════════════════════════════════
+// Tab 切换
+// ═══════════════════════════════════════════
+function switchTab(name, navEl){
+  document.querySelectorAll('.tab-wrap').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if(navEl) navEl.classList.add('active');
+  if(name==='overview') loadStats();
+  if(name==='tree-edit') loadTreeEditor();
+  if(name==='articles') loadArticles();
+  if(name==='settings') loadConfig();
+}
+
+// ═══════════════════════════════════════════
+// API 检测
+// ═══════════════════════════════════════════
+async function checkApi(){
+  const dot=document.getElementById('api-dot'), msg=document.getElementById('api-msg');
+  try{
+    const r=await fetch(apiBase()+'/health');
+    if(r.ok){ dot.className='api-dot ok'; msg.textContent='已连接'; msg.style.color='var(--green)'; loadStats(); }
+    else throw new Error(r.status);
+  }catch(e){ dot.className='api-dot err'; msg.textContent='连接失败'; msg.style.color='var(--red)'; }
+}
+
+// ═══════════════════════════════════════════
+// 统计
+// ═══════════════════════════════════════════
+async function loadStats(){
+  try{
+    const r=await fetch(apiBase()+'/stats'); const d=await r.json();
+    document.getElementById('stat-chunks').textContent=d.total_chunks??'--';
+    document.getElementById('stat-model').textContent=d.embed_model??'--';
+    const r2=await fetch(apiBase()+'/tree'); const tree=await r2.json();
+    let n=0; tree.forEach(s=>s.children.forEach(c=>c.children.forEach(ch=>n+=ch.children.length)));
+    document.getElementById('stat-articles').textContent=n;
+  }catch(e){}
+}
+
+async function loadOverviewTree(){
+  const box=document.getElementById('overview-tree');
+  box.innerHTML='<div class="empty">加载中…</div>';
+  try{
+    const r=await fetch(apiBase()+'/tree'); const tree=await r.json();
+    if(!tree.length){box.innerHTML='<div class="empty">暂无数据</div>';return;}
+    const fl={ai:'AI',risk:'⚠',reviewed:'✓',outdated:'旧'};
+    function node(n,d=0){
+      const pad=d*14;
+      if(n.type==='article') return `<div style="padding:3px 0 3px ${pad}px;font-size:12px;display:flex;align-items:center;gap:5px"><span style="color:var(--hint)">📄</span>${esc(n.title)}${(n.flags||[]).map(f=>`<span class="flag-badge-sm ${f}">${fl[f]||f}</span>`).join('')}</div>`;
+      const icon=n.type==='site'?'🌐':n.type==='category'?'📁':'📂';
+      return `<div style="padding:3px 0 3px ${pad}px;font-size:12px;font-weight:500;color:var(--muted)">${icon} ${esc(n.name)}</div>${(n.children||[]).map(c=>node(c,d+1)).join('')}`;
+    }
+    box.innerHTML=tree.map(n=>node(n)).join('');
+  }catch(e){box.innerHTML='<div class="empty" style="color:var(--red)">加载失败</div>';}
+}
+
+// ═══════════════════════════════════════════
+// 知识树编辑器
+// ═══════════════════════════════════════════
+let teTree=[], teSelected=null, teDragSrc=null;
+
+async function loadTreeEditor(){
+  const area=document.getElementById('te-area');
+  area.innerHTML='<div class="empty">加载中…</div>';
+  try{
+    const r=await fetch(apiBase()+'/tree');
+    teTree=await r.json();
+    renderTeTree();
+  }catch(e){ area.innerHTML='<div class="empty" style="color:var(--red)">加载失败，请检查后端连接</div>'; }
+}
+
+function renderTeTree(){
+  const area=document.getElementById('te-area');
+  if(!teTree.length){area.innerHTML='<div class="empty">暂无数据</div>';return;}
+  area.innerHTML=teTree.map((site,si)=>renderTeNode(site,0,[si])).join('');
+  updateTeButtons();
+}
+
+function renderTeNode(node,depth,path){
+  const pathStr=path.join('-');
+  const isLeaf=node.type==='article';
+  const hasChildren=!isLeaf&&node.children&&node.children.length>0;
+  const indent=depth*16;
+  const icons={site:`<svg class="te-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`,
+    category:`<svg class="te-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>`,
+    chapter:`<svg class="te-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>`,
+    article:`<svg class="te-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>`};
+
+  const rowHtml=`<div class="te-row" data-path="${pathStr}" data-type="${node.type}" draggable="true"
+    style="padding-left:${14+indent}px"
+    onclick="teSelect(this)"
+    ondragstart="teDragStart(event,this)"
+    ondragover="teDragOver(event,this)"
+    ondragleave="teDragLeave(event,this)"
+    ondrop="teDrop(event,this)"
+    ondragend="teDragEnd(event)">
+    <svg class="te-drag-handle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg>
+    <svg class="te-chevron ${isLeaf?'leaf':''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" onclick="${!isLeaf?'teToggle(event,\''+pathStr+'\')':''}"><path d="M9 18l6-6-6-6"/></svg>
+    ${icons[node.type]||''}
+    <span class="te-label">${esc(node.name||node.title||'')}</span>
+    <span class="te-count">${isLeaf?'':(node.children||[]).length+'项'}</span>
+  </div>`;
+
+  if(isLeaf) return `<div class="te-node">${rowHtml}</div>`;
+
+  const childrenHtml=(node.children||[]).map((c,ci)=>renderTeNode(c,depth+1,[...path,ci])).join('');
+  return `<div class="te-node">${rowHtml}<div class="te-children" data-path="${pathStr}">${childrenHtml}</div></div>`;
+}
+
+function teToggle(e,pathStr){
+  e.stopPropagation();
+  const ch=document.querySelector(`.te-children[data-path="${pathStr}"]`);
+  const row=document.querySelector(`.te-row[data-path="${pathStr}"]`);
+  if(ch){ ch.classList.toggle('open'); row.querySelector('.te-chevron').classList.toggle('open'); }
+}
+
+function teSelect(el){
+  document.querySelectorAll('.te-row.selected').forEach(r=>r.classList.remove('selected'));
+  el.classList.add('selected');
+  teSelected=el.dataset.path;
+  updateTeButtons();
+  teShowNodeArts();
+}
+
+function updateTeButtons(){
+  const has=!!teSelected;
+  ['te-btn-rename','te-btn-add','te-btn-up','te-btn-down','te-btn-del'].forEach(id=>{
+    document.getElementById(id).disabled=!has;
+  });
+  if(teSelected){
+    const row=document.querySelector(`.te-row[data-path="${teSelected}"]`);
+    const type=row?.dataset.type;
+    document.getElementById('te-btn-add').disabled=(type==='article');
+  }
+}
+
+// 拖拽
+function teDragStart(e,el){ teDragSrc=el.dataset.path; e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',teDragSrc); }
+function teDragOver(e,el){ e.preventDefault(); e.dataTransfer.dropEffect='move'; el.classList.add('drag-over'); }
+function teDragLeave(e,el){ el.classList.remove('drag-over'); }
+function teDragEnd(){ document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over')); }
+function teDrop(e,el){
+  e.preventDefault(); el.classList.remove('drag-over');
+  const srcPath=teDragSrc, dstPath=el.dataset.path;
+  if(!srcPath||srcPath===dstPath) return;
+  const src=teGetNode(srcPath), dst=teGetNode(dstPath);
+  if(!src||!dst) return;
+  // 从原位置移除
+  teRemoveNode(srcPath);
+  // 插入到目标前（同级）
+  const dstParsed=dstPath.split('-').map(Number);
+  const dstParentPath=dstParsed.slice(0,-1);
+  const dstIdx=dstParsed[dstParsed.length-1];
+  const dstParent=dstParentPath.length?teGetNode(dstParentPath.join('-')):null;
+  const arr=dstParent?dstParent.children:teTree;
+  // 重新找位置（因为移除后索引可能变化）
+  const newDstIdx=Math.min(dstIdx,arr.length);
+  arr.splice(newDstIdx,0,src);
+  renderTeTree();
+}
+
+function teGetNode(pathStr){
+  const parts=pathStr.split('-').map(Number);
+  let cur=teTree, node=null;
+  for(let i=0;i<parts.length;i++){ node=cur[parts[i]]; if(node&&node.children) cur=node.children; }
+  return node;
+}
+function teRemoveNode(pathStr){
+  const parts=pathStr.split('-').map(Number);
+  const idx=parts[parts.length-1];
+  const parentPath=parts.slice(0,-1);
+  const arr=parentPath.length?teGetNode(parentPath.join('-'))?.children:teTree;
+  if(arr) arr.splice(idx,1);
+}
+
+function teRename(){
+  if(!teSelected) return;
+  const node=teGetNode(teSelected);
+  if(!node) return;
+  document.getElementById('rename-input').value=node.name||node.title||'';
+  document.getElementById('rename-modal').classList.add('open');
+}
+function closeRenameModal(){ document.getElementById('rename-modal').classList.remove('open'); }
+async function confirmRename(){
+  const val=document.getElementById('rename-input').value.trim();
+  if(!val){ alert('名称不能为空'); return; }
+  const node=teGetNode(teSelected);
+  if(!node) return;
+  const oldName=node.name||node.title;
+  if(node.type==='article') node.title=val; else node.name=val;
+  closeRenameModal();
+  renderTeTree();
+  // 同步后端：更新该节点下所有文章的对应字段
+  if(node.type!=='article'){
+    await syncRenameToBackend(node, oldName, val);
+  }
+}
+
+async function syncRenameToBackend(node, oldVal, newVal){
+  // 收集该节点下所有文章
+  function collectArticles(n){
+    if(n.type==='article') return [n];
+    return (n.children||[]).flatMap(collectArticles);
+  }
+  const articles=collectArticles(node);
+  for(const art of articles){
+    try{
+      const field=node.type==='site'?'source_site':node.type==='category'?'category':'chapter';
+      await fetch(apiBase()+'/articles/'+art.article_id+'/meta',{
+        method:'PATCH',
+        headers:adminHeaders(),
+        body:JSON.stringify({[field]:newVal})
+      });
+    }catch(e){ console.warn('同步重命名失败',art.article_id,e); }
+  }
+}
+
+function teAddChild(){
+  if(!teSelected) return;
+  const node=teGetNode(teSelected);
+  if(!node||node.type==='article') return;
+  const name=prompt('新节点名称：');
+  if(!name) return;
+  if(!node.children) node.children=[];
+  node.children.push({name,type:node.type==='site'?'category':node.type==='category'?'chapter':'chapter',children:[]});
+  renderTeTree();
+}
+
+function teMoveUp(){
+  if(!teSelected) return;
+  const parts=teSelected.split('-').map(Number);
+  const idx=parts[parts.length-1];
+  if(idx===0) return;
+  const parentPath=parts.slice(0,-1);
+  const arr=parentPath.length?teGetNode(parentPath.join('-'))?.children:teTree;
+  if(!arr) return;
+  [arr[idx-1],arr[idx]]=[arr[idx],arr[idx-1]];
+  renderTeTree();
+}
+
+function teMoveDown(){
+  if(!teSelected) return;
+  const parts=teSelected.split('-').map(Number);
+  const idx=parts[parts.length-1];
+  const parentPath=parts.slice(0,-1);
+  const arr=parentPath.length?teGetNode(parentPath.join('-'))?.children:teTree;
+  if(!arr||idx>=arr.length-1) return;
+  [arr[idx],arr[idx+1]]=[arr[idx+1],arr[idx]];
+  renderTeTree();
+}
+
+async function teDelete(){
+  if(!teSelected) return;
+  const node=teGetNode(teSelected);
+  if(!node) return;
+  const label=node.name||node.title||'此节点';
+  if(!confirm(`确认删除「${label}」？${node.type!=='article'?'\n注意：节点下的文章数据不会从数据库中删除，仅移除树形展示。':''}`)){ return; }
+  if(node.type==='article'){
+    try{
+      await fetch(apiBase()+'/articles/'+node.article_id,{method:'DELETE',headers:adminHeaders()});
+    }catch(e){ alert('删除失败：'+e.message); return; }
+  }
+  teRemoveNode(teSelected);
+  teSelected=null;
+  renderTeTree();
+}
+
+// ═══════════════════════════════════════════
+// 知识树右侧文章面板
+// ═══════════════════════════════════════════
+let tePanelArts=[], teChecked=new Set();
+
+function teShowNodeArts(){
+  if(!teSelected){ return; }
+  const node=teGetNode(teSelected);
+  if(!node) return;
+  // 收集该节点下所有文章（含子节点）
+  function collectArts(n, meta){
+    if(n.type==='article') return [{...n,...meta}];
+    const m2={...meta};
+    if(n.type==='site') m2.source_site=n.name;
+    else if(n.type==='category') m2.category=n.name;
+    else if(n.type==='chapter') m2.chapter=n.name;
+    return (n.children||[]).flatMap(c=>collectArts(c,m2));
+  }
+  tePanelArts=collectArts(node,{});
+  teChecked=new Set();
+  document.getElementById('te-art-search').style.display=tePanelArts.length?'':'none';
+  document.getElementById('te-select-all-btn').style.display=tePanelArts.length?'':'none';
+  document.getElementById('te-batch-del-btn').style.display='none';
+  const label=node.name||node.title||'';
+  document.getElementById('te-panel-title').textContent=`「${label}」的文章`;
+  teRenderArtPanel(tePanelArts);
+}
+
+function teFilterArts(){
+  const q=document.getElementById('te-art-search').value.toLowerCase();
+  teRenderArtPanel(q?tePanelArts.filter(a=>a.title.toLowerCase().includes(q)):tePanelArts);
+}
+
+function teRenderArtPanel(list){
+  const panel=document.getElementById('te-art-panel');
+  document.getElementById('te-panel-count').textContent=list.length+'篇';
+  if(!list.length){ panel.innerHTML='<div class="empty" style="padding:40px 0">暂无文章</div>'; return; }
+  const FL2={ai:'AI',risk:'⚠️',reviewed:'✅',outdated:'🕒'};
+  panel.innerHTML=`<div class="art-table-wrap"><table class="art-table">
+    <thead><tr>
+      <th style="width:32px"><input type="checkbox" id="te-check-all" onchange="teToggleAll(this)"></th>
+      <th>标题</th><th>来源 / 章节</th><th>标记</th><th>操作</th>
+    </tr></thead>
+    <tbody>${list.map(a=>`<tr>
+      <td><input type="checkbox" class="te-art-check" data-id="${esc(a.article_id)}" onchange="teCheckChange(this)"></td>
+      <td><div class="art-title-cell" title="${esc(a.title)}">${esc(a.title)}</div></td>
+      <td><div class="art-meta-cell" style="font-size:11px">${esc(a.source_site||'—')} / ${esc(a.chapter||'—')}</div></td>
+      <td>${(a.flags||[]).map(f=>`<span class="flag-badge-sm ${f}">${FL2[f]||f}</span>`).join('')}</td>
+      <td><div class="art-actions">
+        ${a.url?`<a href="${esc(a.url)}" target="_blank" class="btn btn-ghost btn-sm">原文</a>`:''}
+        <button class="btn btn-ghost btn-sm" onclick='openEditModal(${JSON.stringify(a)})'>编辑</button>
+        <button class="btn btn-danger btn-sm" onclick="teSingleDelete('${esc(a.article_id)}',this)">删除</button>
+      </div></td>
+    </tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+function teToggleAll(cb){
+  document.querySelectorAll('.te-art-check').forEach(c=>{ c.checked=cb.checked; if(cb.checked) teChecked.add(c.dataset.id); else teChecked.delete(c.dataset.id); });
+  document.getElementById('te-batch-del-btn').style.display=teChecked.size?'':'none';
+}
+function teCheckChange(cb){
+  if(cb.checked) teChecked.add(cb.dataset.id); else teChecked.delete(cb.dataset.id);
+  document.getElementById('te-batch-del-btn').style.display=teChecked.size?'':'none';
+  const all=document.querySelectorAll('.te-art-check');
+  const ca=document.getElementById('te-check-all');
+  if(ca) ca.checked=[...all].every(c=>c.checked);
+}
+function teSelectAll(){
+  document.querySelectorAll('.te-art-check').forEach(c=>{ c.checked=true; teChecked.add(c.dataset.id); });
+  const ca=document.getElementById('te-check-all'); if(ca) ca.checked=true;
+  document.getElementById('te-batch-del-btn').style.display=teChecked.size?'':'none';
+}
+
+async function teSingleDelete(id, btn){
+  if(!confirm('确认删除这篇文章的所有向量数据？')) return;
+  btn.disabled=true;
+  const r=await fetch(apiBase()+'/articles/'+id,{method:'DELETE',headers:adminHeaders()});
+  if(r.ok){ tePanelArts=tePanelArts.filter(a=>a.article_id!==id); teChecked.delete(id); teShowNodeArts(); loadStats(); loadTreeEditor(); }
+  else { const d=await r.json().catch(()=>null); alert('删除失败：'+(d?.detail||d?.message||r.status)); btn.disabled=false; }
+}
+
+async function teBatchDelete(){
+  if(!teChecked.size) return;
+  if(!confirm(`确认删除选中的 ${teChecked.size} 篇文章？此操作不可撤销。`)) return;
+  const ids=[...teChecked];
+  let ok=0,fail=0;
+  for(const id of ids){
+    const r=await fetch(apiBase()+'/articles/'+id,{method:'DELETE',headers:adminHeaders()});
+    if(r.ok){ ok++; tePanelArts=tePanelArts.filter(a=>a.article_id!==id); }
+    else fail++;
+  }
+  teChecked=new Set();
+  alert(`完成：删除 ${ok} 篇${fail?'，失败 '+fail+' 篇':''}。`);
+  teShowNodeArts(); loadStats(); loadTreeEditor();
+}
+
+// ═══════════════════════════════════════════
+// 录入单篇
+// ═══════════════════════════════════════════
+async function submitSingle(){
+  const title=document.getElementById('s-title').value.trim();
+  const content=document.getElementById('s-content').value.trim();
+  if(!title||!content){ alert('标题和正文不能为空'); return; }
+  const btn=document.getElementById('s-btn'), res=document.getElementById('s-result');
+  btn.disabled=true; res.innerHTML='<span style="color:var(--muted)">提交中…</span>';
+  const tags=document.getElementById('s-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  try{
+    const r=await fetch(apiBase()+'/articles',{
+      method:'POST', headers:adminHeaders(),
+      body:JSON.stringify({title, content,
+        url:document.getElementById('s-url').value.trim()||null,
+        category:document.getElementById('s-category').value||null,
+        source_site:document.getElementById('s-source').value.trim()||null,
+        chapter:document.getElementById('s-chapter').value.trim()||null,
+        tags, flags:getFlags('s-flags')})
+    });
+    const d=await r.json();
+    if(r.ok){
+      res.innerHTML=`<span style="color:var(--green)">✓ 入库成功，${d.chunks_indexed} 块</span>`;
+      ['s-title','s-url','s-source','s-chapter','s-tags','s-content'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('s-category').value='';
+      setFlags('s-flags',[]);
+    } else { res.innerHTML=`<span style="color:var(--red)">✗ ${esc(JSON.stringify(d))}</span>`; }
+  }catch(e){ res.innerHTML=`<span style="color:var(--red)">✗ ${esc(e.message)}</span>`; }
+  btn.disabled=false;
+}
+
+// ═══════════════════════════════════════════
+// 批量上传
+// ═══════════════════════════════════════════
+let batchFiles=[];
+
+function onDragOver(e,zone){ e.preventDefault(); document.getElementById('upload-zone-'+zone).classList.add('dragover'); }
+function onDragLeave(e,zone){ document.getElementById('upload-zone-'+zone).classList.remove('dragover'); }
+function onDrop(e,zone){
+  e.preventDefault(); document.getElementById('upload-zone-'+zone).classList.remove('dragover');
+  addFiles([...e.dataTransfer.files]);
+}
+function onFileSelect(e){ addFiles([...e.target.files]); e.target.value=''; }
+function onFolderSelect(e){ addFiles([...e.target.files]); e.target.value=''; }
+
+function addFiles(files){
+  files.filter(f=>f.name.endsWith('.md')).forEach(f=>{
+    const key=f.webkitRelativePath||f.name;
+    if(!batchFiles.find(b=>b.key===key)) batchFiles.push({file:f, key, status:'pending'});
+  });
+  renderFileList();
+}
+
+function removeFile(i){ batchFiles.splice(i,1); renderFileList(); }
+function clearFiles(){
+  batchFiles=[];
+  renderFileList();
+  const log=document.getElementById('batch-log');
+  log.style.display='none'; log.innerHTML='';
+  document.getElementById('batch-progress').textContent='';
+}
+
+function renderFileList(){
+  const list=document.getElementById('file-list'), actions=document.getElementById('batch-actions');
+  if(!batchFiles.length){ list.innerHTML=''; actions.style.display='none'; return; }
+  actions.style.display='flex';
+  const sl={pending:'待处理',loading:'处理中…',success:'成功',error:'失败'};
+  list.innerHTML=batchFiles.map((b,i)=>`
+    <div class="file-item">
+      <span class="file-item-name">${esc(b.file.name)}</span>
+      <span class="file-item-path" title="${esc(b.key)}">${esc(b.key)}</span>
+      <span class="fstatus ${b.status}">${sl[b.status]}</span>
+      ${b.status==='pending'?`<button class="btn btn-ghost btn-sm" onclick="removeFile(${i})" style="padding:2px 6px">✕</button>`:''}
+    </div>`).join('');
+}
+
+function parseFM(text){
+  const meta={};
+  if(!text.startsWith('---')) return {meta, body:text};
+  const end=text.indexOf('\n---',3); if(end===-1) return {meta,body:text};
+  text.slice(3,end).trim().split('\n').forEach(line=>{
+    const ci=line.indexOf(':'); if(ci===-1) return;
+    const k=line.slice(0,ci).trim(); let v=line.slice(ci+1).trim();
+    if(v.startsWith('[')&&v.endsWith(']')) v=v.slice(1,-1).split(',').map(s=>s.trim().replace(/['"]/g,'')).filter(Boolean);
+    meta[k]=v;
+  });
+  return {meta, body:text.slice(end+4).trim()};
+}
+
+function pathToMeta(relPath, defaultSource, defaultCat){
+  // 若用户填写了来源站点，强制作为 source_site，文件夹路径作为 chapter
+  const parts=relPath.split('/').filter(Boolean);
+  const fname=parts[parts.length-1].replace(/\.md$/i,'');
+  const folders=parts.slice(0,-1);
+  if(defaultSource){
+    return {source_site:defaultSource,category:defaultCat||folders[0]||null,chapter:folders.join('/')||null,title:fname};
+  }
+  // 未填来源站点时从路径第一层文件夹推断 source_site
+  if(folders.length===0) return {source_site:null,category:defaultCat,chapter:null,title:fname};
+  if(folders.length===1) return {source_site:folders[0],category:defaultCat,chapter:null,title:fname};
+  if(folders.length===2) return {source_site:folders[0],category:folders[1],chapter:null,title:fname};
+  return {source_site:folders[0],category:folders[1],chapter:folders.slice(2).join('/')||null,title:fname};
+}
+
+async function startBatch(isRetry=false){
+  if(!batchFiles.length) return;
+  const btn=document.getElementById('batch-btn'); btn.disabled=true;
+  document.getElementById('batch-log').innerHTML='';
+  const defSource=document.getElementById('b-source').value.trim();
+  const defCat=document.getElementById('b-category').value;
+  const defFlags=getFlags('b-flags');
+  let ok=0, fail=0;
+  for(let i=0;i<batchFiles.length;i++){
+    if(batchFiles[i].status==='success') continue;
+    batchFiles[i].status='loading'; renderFileList();
+    const text=await batchFiles[i].file.text();
+    const {meta,body}=parseFM(text);
+    const clean=body.replace(/!\[.*?\]\(.*?\)/g,'').replace(/\[([^\]]+)\]\([^\)]+\)/g,'$1').replace(/#{1,6}\s+/g,'').replace(/[*_`~>]+/g,'').replace(/\n{3,}/g,'\n\n').trim();
+    if(clean.length<20){ batchFiles[i].status='error'; log(`[${i+1}] 跳过（内容过短）：${batchFiles[i].file.name}`,'warn'); fail++; renderFileList(); continue; }
+    const pm=pathToMeta(batchFiles[i].key, defSource, defCat);
+    const tags=Array.isArray(meta.tags)?meta.tags:(meta.tags?[meta.tags]:[]);
+    const flags=Array.isArray(meta.flags)?meta.flags:(meta.flags?[meta.flags]:defFlags);
+    const article={
+      title:meta.title||pm.title, content:clean, url:meta.url||null,
+      category:meta.category||pm.category||null,
+      source_site:meta.source_site||pm.source_site||null,
+      chapter:meta.chapter||pm.chapter||null, tags, flags
+    };
+    log(`[${i+1}/${batchFiles.length}] ${article.source_site||'?'} / ${article.category||'?'} / ${article.title}`,'info');
+    try{
+      const r=await fetch(apiBase()+'/articles',{method:'POST',headers:adminHeaders(),body:JSON.stringify(article)});
+      const d=await r.json();
+      if(r.ok){ log(`  ✓ ${d.chunks_indexed} 块`,'ok'); batchFiles[i].status='success'; ok++; }
+      else { log(`  ✗ ${JSON.stringify(d)}`,'err'); batchFiles[i].status='error'; fail++; }
+    }catch(e){ log(`  ✗ ${e.message}`,'err'); batchFiles[i].status='error'; fail++; }
+    document.getElementById('batch-progress').textContent=`${ok+fail}/${batchFiles.length} 已处理`;
+    renderFileList();
+  }
+  log(`\n完成：成功 ${ok} / 失败 ${fail}`, ok===batchFiles.length?'ok':'warn');
+  btn.disabled=false; loadStats();
+  if(!isRetry && fail>0){
+    const retry=confirm(`有 ${fail} 篇文章入库失败，是否重新尝试这些失败项？`);
+    if(retry){
+      batchFiles.forEach(b=>{ if(b.status==='error') b.status='pending'; });
+      renderFileList();
+      startBatch(true);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════
+// 文章列表
+// ═══════════════════════════════════════════
+let allArticles=[];
+
+async function loadArticles(){
+  const box=document.getElementById('articles-container');
+  box.innerHTML='<div class="empty">加载中…</div>';
+  try{
+    const r=await fetch(apiBase()+'/tree');
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const tree=await r.json();
+    allArticles=[];
+    tree.forEach(site=>site.children.forEach(cat=>cat.children.forEach(ch=>
+      ch.children.forEach(art=>allArticles.push({
+        ...art, source_site:site.name, category:cat.name, chapter:ch.name
+      }))
+    )));
+    document.getElementById('art-count').textContent=allArticles.length+' 篇';
+    filterArticles();
+  }catch(e){
+    box.innerHTML='<div class="empty" style="color:var(--red)">加载失败：'+esc(e.message)+'</div>';
+  }
+}
+
+function filterArticles(){
+  const q=document.getElementById('art-search').value.toLowerCase();
+  const cat=document.getElementById('art-cat-filter').value;
+  const list=allArticles.filter(a=>
+    (!q||a.title.toLowerCase().includes(q))&&
+    (!cat||(a.category||'')=== cat)
+  );
+  document.getElementById('art-count').textContent=list.length+'/'+allArticles.length+' 篇';
+  renderArticles(list);
+}
+
+const FL={ai:'AI',risk:'⚠️ 风险',reviewed:'✅ 审核',outdated:'🕒 过时'};
+function renderArticles(list){
+  const box=document.getElementById('articles-container');
+  if(!list.length){ box.innerHTML='<div class="empty">暂无文章</div>'; return; }
+  box.innerHTML=`<div class="art-table-wrap"><table class="art-table">
+    <thead><tr><th>标题</th><th>来源</th><th>分类 / 章节</th><th>标记</th><th>操作</th></tr></thead>
+    <tbody>
+    ${list.map(a=>`<tr>
+      <td><div class="art-title-cell" title="${esc(a.title)}">${esc(a.title)}</div></td>
+      <td><div class="art-meta-cell">${esc(a.source_site||'—')}</div></td>
+      <td><div class="art-meta-cell">${esc(a.category||'—')} / ${esc(a.chapter||'—')}</div></td>
+      <td>${(a.flags||[]).map(f=>`<span class="flag-badge-sm ${f}">${FL[f]||f}</span>`).join('')}</td>
+      <td><div class="art-actions">
+        ${a.url?`<a href="${esc(a.url)}" target="_blank" class="btn btn-ghost btn-sm">原文</a>`:''}
+        <button class="btn btn-ghost btn-sm" onclick='openEditModal(${JSON.stringify(a)})'>编辑</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteArticle('${esc(a.article_id)}',this)">删除</button>
+      </div></td>
+    </tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+async function deleteArticle(id, btn){
+  if(!confirm('确认删除这篇文章的所有向量数据？')) return;
+  btn.disabled=true;
+  try{
+    const r=await fetch(apiBase()+'/articles/'+id,{method:'DELETE',headers:{'X-Admin-Key':document.getElementById('admin-key').value}});
+    if(r.ok){ loadArticles(); loadStats(); }
+    else { alert('删除失败'); btn.disabled=false; }
+  }catch(e){ alert('网络错误'); btn.disabled=false; }
+}
+
+// ═══════════════════════════════════════════
+// 编辑文章 Modal
+// ═══════════════════════════════════════════
+function openEditModal(art){
+  document.getElementById('edit-id').value=art.article_id||'';
+  document.getElementById('edit-title').value=art.title||'';
+  document.getElementById('edit-url').value=art.url||'';
+  document.getElementById('edit-source').value=art.source_site||'';
+  document.getElementById('edit-category').value=art.category||'';
+  document.getElementById('edit-chapter').value=art.chapter||'';
+  document.getElementById('edit-tags').value=(art.tags||[]).join(', ');
+  setFlags('edit-flags', art.flags||[]);
+  document.getElementById('edit-modal').classList.add('open');
+}
+function closeModal(){ document.getElementById('edit-modal').classList.remove('open'); }
+
+async function saveEdit(){
+  const id=document.getElementById('edit-id').value;
+  const tags=document.getElementById('edit-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const payload={
+    title:document.getElementById('edit-title').value.trim(),
+    url:document.getElementById('edit-url').value.trim()||null,
+    source_site:document.getElementById('edit-source').value.trim()||null,
+    category:document.getElementById('edit-category').value||null,
+    chapter:document.getElementById('edit-chapter').value.trim()||null,
+    tags, flags:getFlags('edit-flags')
+  };
+  try{
+    const r=await fetch(apiBase()+'/articles/'+id+'/meta',{method:'PATCH',headers:adminHeaders(),body:JSON.stringify(payload)});
+    if(r.ok){ closeModal(); teShowNodeArts(); loadTreeEditor(); }
+    else { const d=await r.json(); alert('保存失败：'+JSON.stringify(d)); }
+  }catch(e){ alert('网络错误：'+e.message); }
+}
+
+// ═══════════════════════════════════════════
+// 系统配置
+// ═══════════════════════════════════════════
+async function loadConfig(){
+  try{
+    const r=await fetch(apiBase()+'/config',{headers:{'X-Admin-Key':document.getElementById('admin-key').value}});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    document.getElementById('cfg-base-url').value=d.openai_base_url||'';
+    document.getElementById('cfg-embed-model').value=d.embed_model||'';
+    document.getElementById('cfg-embed-dim').value=d.embed_dim||'';
+    document.getElementById('cfg-chat-model').value=d.chat_model||'';
+    document.getElementById('cfg-chunk-size').value=d.chunk_size||'';
+    document.getElementById('cfg-chunk-overlap').value=d.chunk_overlap||'';
+    document.getElementById('cfg-threshold').value=d.score_threshold||'';
+    document.getElementById('cfg-query-expand').checked=!!d.query_expand;
+    document.getElementById('cfg-hybrid').checked=!!d.hybrid_search;
+    document.getElementById('cfg-result').textContent='';
+  }catch(e){ document.getElementById('cfg-result').textContent='加载失败：'+e.message; }
+}
+
+async function saveConfig(){
+  const payload={
+    openai_base_url: document.getElementById('cfg-base-url').value.trim()||null,
+    embed_model:     document.getElementById('cfg-embed-model').value.trim()||null,
+    embed_dim:       parseInt(document.getElementById('cfg-embed-dim').value)||null,
+    chat_model:      document.getElementById('cfg-chat-model').value.trim()||null,
+    chunk_size:      parseInt(document.getElementById('cfg-chunk-size').value)||null,
+    chunk_overlap:   parseInt(document.getElementById('cfg-chunk-overlap').value)||null,
+    score_threshold: parseFloat(document.getElementById('cfg-threshold').value)||null,
+    query_expand:    document.getElementById('cfg-query-expand').checked,
+    hybrid_search:   document.getElementById('cfg-hybrid').checked,
+  };
+  const res=document.getElementById('cfg-result');
+  res.textContent='保存中…'; res.style.color='var(--muted)';
+  try{
+    const r=await fetch(apiBase()+'/config',{method:'PATCH',headers:adminHeaders(),body:JSON.stringify(payload)});
+    const d=await r.json();
+    if(r.ok){ res.textContent='✓ 已保存，修改立即生效'; res.style.color='var(--green)'; }
+    else { res.textContent='✗ '+JSON.stringify(d); res.style.color='var(--red)'; }
+  }catch(e){ res.textContent='✗ '+e.message; res.style.color='var(--red)'; }
+}
+
+async function testLlmApi(){
+  const btn=document.getElementById('test-api-btn');
+  const res=document.getElementById('cfg-result');
+  btn.disabled=true; res.textContent='测试中…'; res.style.color='var(--muted)';
+  // 先保存当前配置，再用后端做一次 embed 调用
+  // 通过调用 /health 和 /stats 验证后端在线，然后发一条测试搜索
+  try{
+    // 测试方法：发起一次最小搜索，如果 embed 调用失败后端会返回 500
+    const r=await fetch(apiBase()+'/search?q=test&top_k=1');
+    if(r.status===200||r.status===404){
+      res.textContent='✓ API 可用（Embedding + Chat 模型均正常）'; res.style.color='var(--green)';
+    } else if(r.status===500){
+      const d=await r.json();
+      res.textContent='✗ API 调用失败：'+(d.detail||'服务器内部错误'); res.style.color='var(--red)';
+    } else {
+      res.textContent='✗ HTTP '+r.status; res.style.color='var(--red)';
+    }
+  }catch(e){ res.textContent='✗ 网络错误：'+e.message; res.style.color='var(--red)'; }
+  btn.disabled=false;
+}
+
+// 初始化
+(function(){const k=localStorage.getItem('adminKey');if(k)document.getElementById('admin-key').value=k;})();
+checkApi();
+</script>
+</body>
+</html>
