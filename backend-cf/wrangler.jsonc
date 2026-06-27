@@ -8,7 +8,7 @@
     "enabled": true
   },
   "vars": {
-    "ALLOWED_ORIGINS": "http://localhost,http://127.0.0.1",
+    "ALLOWED_ORIGINS": "*",
     "SEARCH_MAX_LEN": "200",
     "CONTENT_MAX_LEN": "100000",
     "TITLE_MAX_LEN": "200",
