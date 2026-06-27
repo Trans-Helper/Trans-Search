@@ -484,7 +484,7 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/search", response_model=list[SearchResult])
+@app.get("/search")
 def search(
     request: Request,
     q: str = Query(..., max_length=SEARCH_MAX_LEN),
@@ -561,8 +561,13 @@ def search(
             )
         if len(seen) >= top_k:
             break
-    return list(seen.values())
-
+    results = list(seen.values())
+    import json as _json
+    return Response(
+        content=_json.dumps([r.model_dump() for r in results], ensure_ascii=False),
+        media_type="application/json",
+        headers={"X-Expanded-Query": expanded_q, "Access-Control-Expose-Headers": "X-Expanded-Query"}
+    )
 
 @app.get("/tree")
 def get_tree(request: Request):
