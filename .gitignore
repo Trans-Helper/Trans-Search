@@ -44,3 +44,8 @@ backend-cf/.dev.vars
 
 frontend/node_modules/
 frontend/.nuxt/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
