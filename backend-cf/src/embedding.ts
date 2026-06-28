@@ -44,8 +44,11 @@ export async function expandQuery(q: string, env: Env, cfg: Config): Promise<str
             content: `扩展搜索词（2-3个同义表达）：${safeQ}`,
           },
         ],
-        max_tokens: 60,
-        temperature: 0.3,
+        "thinking": {
+            "type": "enabled"
+        },
+        max_tokens: 65536,
+        temperature: 1.0,
       }),
     })
     console.log('chat resp status:', resp.status)
