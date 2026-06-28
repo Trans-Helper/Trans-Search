@@ -51,12 +51,9 @@ export async function expandQuery(q: string, env: Env, cfg: Config): Promise<str
         temperature: 0.3,
       }),
     })
-    console.log('chat resp status:', resp.status)
     if (!resp.ok) throw new Error(`Chat API error ${resp.status}`)
     const data = await resp.json() as { choices: { message: { content: string } }[] }
-    console.log('chat raw:', JSON.stringify(data))
     let expanded = data.choices[0].message.content.trim()
-    console.log('expanded:', expanded)
     expanded = expanded.replace(/[^\w\s\u4e00-\u9fff，,、]/g, "").slice(0, 200)
     return `${q}，${expanded}`
   } catch (e) {
