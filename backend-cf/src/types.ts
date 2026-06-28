@@ -3,6 +3,7 @@ export interface Env {
   ADMIN_API_KEY?: string
   QDRANT_URL: string
   QDRANT_API_KEY: string
+  CONFIG_KV: KVNamespace
   ALLOWED_ORIGINS?: string
   OPENAI_BASE_URL?: string
   EMBED_MODEL?: string
