@@ -22,10 +22,14 @@ export async function embed(text: string, env: Env, cfg: Config): Promise<number
 }
 
 export async function expandQuery(q: string, env: Env, cfg: Config): Promise<string> {
-  if (!cfg.query_expand) return q
+  if (!cfg.query_expand) {
+    console.log(`expandQuery: query_expand disabled, using original: "${q}"`)
+    return q
+  }
 
   const safeQ = q.slice(0, 100).replace(/[^\w\s\u4e00-\u9fff，。？！、]/g, "")
   try {
+    console.log(`expandQuery: calling chat API model=${cfg.chat_model} base_url=${cfg.openai_base_url}`)
     const resp = await fetch(`${cfg.openai_base_url}chat/completions`, {
       method: "POST",
       headers: {
@@ -44,20 +48,22 @@ export async function expandQuery(q: string, env: Env, cfg: Config): Promise<str
             content: `扩展搜索词（2-3个同义表达）：${safeQ}`,
           },
         ],
-        "thinking": {
-            "type": "disabled"
-        },
-        max_tokens: 65536,
+        max_tokens: 120,
         temperature: 0.3,
       }),
     })
-    if (!resp.ok) throw new Error(`Chat API error ${resp.status}`)
+    if (!resp.ok) {
+      const body = await resp.text()
+      throw new Error(`Chat API error ${resp.status}: ${body.slice(0, 200)}`)
+    }
     const data = await resp.json() as { choices: { message: { content: string } }[] }
     let expanded = data.choices[0].message.content.trim()
     expanded = expanded.replace(/[^\w\s\u4e00-\u9fff，,、]/g, "").slice(0, 200)
-    return `${q}，${expanded}`
+    const result = `${q}，${expanded}`
+    console.log(`expandQuery: success "${q}" -> "${result}"`)
+    return result
   } catch (e) {
-    console.warn(`Query expansion failed, using original: ${e}`)
+    console.error(`expandQuery: FAILED for "${q}": ${e}`)
     return q
   }
 }

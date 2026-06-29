@@ -86,7 +86,7 @@ DEFAULT_CONFIG = {
     ),
     "embed_model": os.getenv("OPENAI_EMBED_MODEL", "embedding-3"),
     "embed_dim": int(os.getenv("EMBED_DIM", "2048")),
-    "chat_model": os.getenv("CHAT_MODEL", "glm-4-flash"),
+    "chat_model": os.getenv("CHAT_MODEL", "glm-4.7-flash"),
     "chunk_size": int(os.getenv("CHUNK_SIZE", "600")),
     "chunk_overlap": int(os.getenv("CHUNK_OVERLAP", "80")),
     "score_threshold": float(os.getenv("SCORE_THRESHOLD", "0.25")),
@@ -300,10 +300,12 @@ def text_to_sparse(text: str) -> SparseVector:
 
 def expand_query(q: str) -> str:
     if not cfg.get("query_expand"):
+        logger.info(f"查询扩展已禁用，使用原始查询: {q}")
         return q
     # 防 prompt injection：只取前 100 字，去除换行和特殊字符
     safe_q = re.sub(r"[^\w\s\u4e00-\u9fff，。？！、]", "", q[:100])
     try:
+        logger.info(f"查询扩展: 调用 Chat API model={cfg['chat_model']}")
         resp = make_client().chat.completions.create(
             model=cfg["chat_model"],
             messages=[
@@ -316,15 +318,17 @@ def expand_query(q: str) -> str:
                     "content": f"扩展搜索词（2-3个同义表达）：{safe_q}",
                 },
             ],
-            max_tokens=60,
+            max_tokens=120,
             temperature=0.3,
         )
         expanded = resp.choices[0].message.content.strip()
         # 只保留中文、字母、数字、逗号，防止注入内容污染向量
         expanded = re.sub(r"[^\w\s\u4e00-\u9fff，,、]", "", expanded)[:200]
-        return f"{q}，{expanded}"
-    except OpenAIError as e:
-        logger.warning(f"查询扩展失败，使用原始查询: {e}")
+        result = f"{q}，{expanded}"
+        logger.info(f"查询扩展: \"{q}\" -> \"{result}\"")
+        return result
+    except Exception as e:
+        logger.error(f"查询扩展失败 for \"{q}\": {type(e).__name__}: {e}")
         return q
 
 
@@ -563,8 +567,12 @@ def search(
             break
     results = list(seen.values())
     import json as _json
+    body = _json.dumps(
+        {"results": [r.model_dump() for r in results], "expanded_query": expanded_q},
+        ensure_ascii=False,
+    )
     return Response(
-        content=_json.dumps([r.model_dump() for r in results], ensure_ascii=False),
+        content=body,
         media_type="application/json",
         headers={"X-Expanded-Query": expanded_q, "Access-Control-Expose-Headers": "X-Expanded-Query"}
     )

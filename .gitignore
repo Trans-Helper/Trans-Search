@@ -49,3 +49,6 @@ frontend/.nuxt/
 .wrangler
 .dev.vars*
 !.dev.vars.example
+
+# Plans (local dev docs, excluded from Git)
+plans/

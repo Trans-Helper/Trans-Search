@@ -5,3 +5,43 @@
 body {
   @apply bg-gray-50 text-gray-900 min-h-screen;
 }
+
+/* Markdown 渲染样式 */
+.md-render {
+  @apply text-xs leading-relaxed text-gray-500;
+  word-break: break-word;
+}
+.md-render p {
+  @apply mb-1;
+}
+.md-render a {
+  @apply text-primary-600 hover:underline;
+}
+.md-render strong {
+  @apply font-semibold text-gray-600;
+}
+.md-render code {
+  @apply bg-gray-100 px-1 rounded text-xs;
+}
+.md-render pre {
+  @apply bg-gray-100 p-2 rounded overflow-x-auto text-xs mb-2;
+}
+.md-render ul, .md-render ol {
+  @apply pl-5 mb-1;
+}
+.md-render li {
+  @apply list-disc;
+}
+.md-render h1, .md-render h2, .md-render h3, .md-render h4 {
+  @apply font-semibold text-gray-800 mt-2 mb-1;
+}
+.md-render h1 { @apply text-[15px]; }
+.md-render h2 { @apply text-[15px]; }
+.md-render h3 { @apply text-sm; }
+.md-render h4 { @apply text-sm; }
+.md-render blockquote {
+  @apply border-l-2 border-gray-300 pl-3 text-gray-400 italic my-1 text-[11px];
+}
+.md-render hr {
+  @apply my-2 border-gray-200;
+}

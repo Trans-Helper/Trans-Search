@@ -89,6 +89,7 @@ app.get("/search", async (c) => {
   const qfilter = buildFilter(category, tags, sourceSite, chapter)
 
   const expandedQ = await expandQuery(q, c.env, cfg)
+  console.log(`search: original="${q}" expanded="${expandedQ}"`)
   const [queryVector, querySparse] = await Promise.all([
     embed(expandedQ, c.env, cfg),
     textToSparse(expandedQ),
@@ -136,11 +137,12 @@ app.get("/search", async (c) => {
     if (seen.size >= topK) break
   }
 
-    const results = Array.from(seen.values())
-    return c.json(results, 200, {
-      "X-Expanded-Query": encodeURIComponent(expandedQ),
-    })
+  const results = Array.from(seen.values())
+  // 在响应体中返回 expanded_query，前端可直接读取
+  return c.json({ results, expanded_query: expandedQ }, 200, {
+    "X-Expanded-Query": expandedQ,
   })
+})
 
 app.get("/tree", async (c) => {
   const ip = getClientIP(c.req.raw)
@@ -240,7 +242,9 @@ app.patch("/config", async (c) => {
   requireAdmin(c.req.header("X-Admin-Key"), c.env)
 
   const update = await c.req.json<ConfigUpdate>()
-  if (update.openai_base_url) validateBaseUrl(update.openai_base_url)
+  if (update.openai_base_url) {
+    update.openai_base_url = validateBaseUrl(update.openai_base_url)
+  }
   if (update.chunk_size !== undefined) validateChunkSize(update.chunk_size)
   if (update.score_threshold !== undefined) validateThreshold(update.score_threshold)
 

@@ -45,6 +45,14 @@ export function useApi() {
     return key ? { "X-Admin-Key": key } : {}
   }
 
+  /**
+   * 搜索结果类型：新格式 { results, expanded_query }
+   */
+  interface SearchResponse {
+    results: any[]
+    expanded_query: string
+  }
+
   async function search(params: {
     q: string
     category?: string
@@ -53,9 +61,21 @@ export function useApi() {
     tags?: string
     top_k?: number
   }) {
-    return request<any[]>(`/api/search`, {
-      params: params as Record<string, string | number | undefined>,
+    const res = await fetch(`${baseURL()}/api/search?${new URLSearchParams(
+      Object.entries(params as Record<string, string | number | undefined>)
+        .filter(([, v]) => v !== undefined && v !== null && v !== "")
+        .map(([k, v]) => [k, String(v)])
+    )}`, {
+      headers: { "Content-Type": "application/json" },
     })
+    const data = await res.json()
+    if (!res.ok) throw new Error((data as { detail?: string })?.detail ?? `HTTP ${res.status}`)
+    // 新格式（Workers 后端）：{ results, expanded_query }
+    // 兼容旧格式（Python 后端/旧版本）：直接返回数组
+    if (data && typeof data === "object" && "results" in data && "expanded_query" in data) {
+      return data as SearchResponse
+    }
+    return { results: data as any[], expanded_query: "" } as SearchResponse
   }
 
   async function getTree() {

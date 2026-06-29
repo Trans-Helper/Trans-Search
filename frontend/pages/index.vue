@@ -61,7 +61,12 @@
     </div>
 
     <div v-if="results.length > 0" class="space-y-4">
-      <p class="text-sm text-gray-400 mb-2">共 {{ results.length }} 条结果</p>
+      <div class="flex items-center gap-2 mb-2 flex-wrap">
+        <p class="text-sm text-gray-400">共 {{ results.length }} 条结果</p>
+        <span v-if="expandedQuery && expandedQuery !== query" class="text-xs text-primary-500 bg-primary-50 px-2 py-0.5 rounded-full">
+          搜索已扩展：<span class="font-medium">{{ expandedQuery }}</span>
+        </span>
+      </div>
       <div
         v-for="r in results"
         :key="r.article_id"
@@ -71,7 +76,7 @@
           <h3 class="text-base font-semibold text-gray-900 leading-snug">{{ r.title }}</h3>
           <span class="shrink-0 text-xs font-mono text-gray-400">{{ (r.score * 100).toFixed(1) }}%</span>
         </div>
-        <p class="text-sm text-gray-600 leading-relaxed mb-2">{{ r.excerpt }}</p>
+        <div class="md-render mb-2" v-html="renderMd(r.excerpt)"></div>
         <div class="flex flex-wrap items-center gap-2 text-xs text-gray-400">
           <span v-if="r.category" class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded">{{ r.category }}</span>
           <span v-if="r.source_site" class="bg-green-50 text-green-600 px-2 py-0.5 rounded">{{ r.source_site }}</span>
@@ -91,11 +96,42 @@
 </template>
 
 <script setup lang="ts">
+import { marked } from "marked"
+
+// 配置 marked：在新窗口打开链接
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+})
+
+function renderMd(text: string): string {
+  if (!text) return ""
+  // 限制长度后渲染
+  let s = text.slice(0, 300)
+  // 补全被截断的 Markdown 链接 [text](url → [text](url)
+  // 以及图片 ![alt](url → ![alt](url)
+  const openParen = s.lastIndexOf("(")
+  const closeParen = s.lastIndexOf(")")
+  if (openParen > closeParen) {
+    // 有未闭合的圆括号（链接被截断了），补上 )
+    s += ")"
+  }
+  // 补全未闭合的加粗/斜体 **text → **text**
+  const stars = (s.match(/\*{1,3}/g) || []).length
+  if (stars % 2 !== 0) s += "**"
+  // 补全未闭合的代码标记 `text → `text`
+  const backticks = (s.match(/`/g) || []).length
+  if (backticks % 2 !== 0) s += "`"
+
+  return marked.parse(s, { async: false }) as string
+}
+
 const { search } = useApi()
 const query = ref("")
 const loading = ref(false)
 const results = ref<any[]>([])
 const error = ref("")
+const expandedQuery = ref("")
 
 const filters = reactive({
   category: "",
@@ -111,8 +147,9 @@ async function doSearch() {
   loading.value = true
   error.value = ""
   results.value = []
+  expandedQuery.value = ""
   try {
-    results.value = await search({
+    const data = await search({
       q,
       category: filters.category || undefined,
       source_site: filters.source_site || undefined,
@@ -120,6 +157,8 @@ async function doSearch() {
       tags: filters.tags || undefined,
       top_k: filters.top_k,
     })
+    results.value = data.results
+    expandedQuery.value = data.expanded_query
   } catch (e: any) {
     error.value = e.message
   } finally {

@@ -45,7 +45,9 @@ export class Config {
 
   toJSON() {
     return {
+      openai_base_url: this.openai_base_url,
       embed_model: this.embed_model,
+      embed_dim: this.embed_dim,
       chat_model: this.chat_model,
       chunk_size: this.chunk_size,
       chunk_overlap: this.chunk_overlap,
